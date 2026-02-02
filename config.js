@@ -66,11 +66,11 @@ export const IMAGE_GENERATION_CONFIG = {
 
 export const LOAD_TEST_OPTIONS = {
   stages: [
-    { duration: "2m", target: 10000 }, // 워밍업
-    { duration: "3m", target: 30000 }, // 램프업
-    { duration: "5m", target: 35000 }, // 피크 (15,000 TPS 증명)
-    { duration: "2m", target: 20000 }, // 감소
-    { duration: "2m", target: 0 }, // 종료
+    { duration: "3m", target: 10000 },
+    { duration: "5m", target: 30000 },
+    { duration: "10m", target: 35000 }, // 14m → 10m (충분한 유지 시간)
+    { duration: "3m", target: 20000 },
+    { duration: "3m", target: 0 },
   ],
   thresholds: {
     http_req_duration: ["p(95)<15000"],

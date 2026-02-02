@@ -1,9 +1,9 @@
-import http from 'k6/http';
-import { check } from 'k6';
-import { Trend } from 'k6/metrics';
-import { SERVER_URL, TEST_USERS } from '../config.js';
+import http from "k6/http";
+import { check } from "k6";
+import { Trend } from "k6/metrics";
+import { SERVER_URL, TEST_USERS } from "../config.js";
 
-const loginDuration = new Trend('login_duration');
+const loginDuration = new Trend("login_duration");
 
 /**
  * 로그인 수행
@@ -14,28 +14,27 @@ export function login() {
 
   const loginData = {
     username: user.username,
-    password: user.password
+    password: user.password,
   };
 
   const response = http.post(
     `${SERVER_URL}/api/v1/auth/normal/login`,
     JSON.stringify(loginData),
     {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { "Content-Type": "application/json" },
     }
   );
 
   const success = check(response, {
-    '✅ 로그인 성공': (r) => r.status === 200,
+    "✅ 로그인 성공": (r) => r.status === 200,
   });
 
   loginDuration.add(response.timings.duration);
 
   if (success) {
-    const authHeader = response.headers['Authorization'];
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    const authHeader = response.headers["Authorization"];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
-      console.log(`✅ 로그인 성공: ${user.username}`);
       return token;
     } else {
       console.log(`❌ 토큰 추출 실패`);

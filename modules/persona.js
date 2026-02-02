@@ -1,17 +1,17 @@
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-import { Trend } from 'k6/metrics';
-import { SERVER_URL, POLLING_CONFIG } from '../config.js';
-import { trackError } from './error-tracker.js';
+import http from "k6/http";
+import { check, sleep } from "k6";
+import { Trend } from "k6/metrics";
+import { SERVER_URL, POLLING_CONFIG } from "../config.js";
+import { trackError } from "./error-tracker.js";
 
-const personaGenerationDuration = new Trend('persona_generation_duration');
+const personaGenerationDuration = new Trend("persona_generation_duration");
 
 /**
  * Persona 생성 요청 + 폴링
  */
 export function generatePersona(token, storyId) {
   if (!storyId) {
-    console.log('❌ 스토리 ID가 없어서 Persona를 생성할 수 없습니다');
+    console.log("❌ 스토리 ID가 없어서 Persona를 생성할 수 없습니다");
     return null;
   }
 
@@ -21,28 +21,26 @@ export function generatePersona(token, storyId) {
     null,
     {
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
     }
   );
 
   const genSuccess = check(genResponse, {
-    '✅ Persona 생성 요청 성공': (r) => r.status === 202,
+    "✅ Persona 생성 요청 성공": (r) => r.status === 202,
   });
 
   if (!genSuccess) {
     console.log(`❌ Persona 생성 요청 실패: ${genResponse.status}`);
     trackError({
-      stage: 'persona_generate',
+      stage: "persona_generate",
       storyId: storyId,
       statusCode: genResponse.status,
-      errorMessage: `Persona 생성 요청 실패 (status: ${genResponse.status})`
+      errorMessage: `Persona 생성 요청 실패 (status: ${genResponse.status})`,
     });
     return null;
   }
-
-  console.log(`👥 Persona 생성 요청 완료, 폴링 시작...`);
 
   // 2. 폴링
   const startTime = Date.now();
@@ -51,14 +49,11 @@ export function generatePersona(token, storyId) {
   while (attempts < POLLING_CONFIG.persona.maxAttempts) {
     sleep(POLLING_CONFIG.persona.intervalMs / 1000);
 
-    const pollResponse = http.get(
-      `${SERVER_URL}/api/v1/persona/${storyId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    );
+    const pollResponse = http.get(`${SERVER_URL}/api/v1/persona/${storyId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (pollResponse.status === 200) {
       try {
@@ -68,7 +63,6 @@ export function generatePersona(token, storyId) {
         if (Array.isArray(data) && data.length > 0) {
           const duration = Date.now() - startTime;
           personaGenerationDuration.add(duration);
-          console.log(`✅ Persona 생성 완료 (${duration}ms, ${data.length}개, ${attempts}번 시도)`);
           return data;
         }
       } catch (e) {
@@ -79,12 +73,12 @@ export function generatePersona(token, storyId) {
     attempts++;
   }
 
-  console.log('❌ Persona 생성 타임아웃');
+  console.log("❌ Persona 생성 타임아웃");
   trackError({
-    stage: 'persona_polling',
+    stage: "persona_polling",
     storyId: storyId,
     statusCode: null,
-    errorMessage: `Persona 폴링 타임아웃 (${attempts}번 시도)`
+    errorMessage: `Persona 폴링 타임아웃 (${attempts}번 시도)`,
   });
   return null;
 }
