@@ -1,0 +1,11 @@
+{
+  "summary": {
+    "totalErrors": 0,
+    "testDuration": 17.75939751552794,
+    "totalRequests": 161,
+    "failedRequests": 161,
+    "timestamp": "2026-02-02T11:44:29.426Z"
+  },
+  "errorsByStage": {},
+  "detailedErrors": []
+}
