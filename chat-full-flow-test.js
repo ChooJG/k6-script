@@ -52,24 +52,26 @@ export default function () {
     sleep(1 + Math.random() * 2);
   }
 
-  // 6 ~ 8. 생성 요청 (Summary, Persona, Page)
+  // 6 ~ 8. 생성 요청만 전송 (Summary, Persona, Page) - 폴링 없음
   if (!generateSummary(userToken, currentStoryId)) return;
   if (!generatePersona(userToken, currentStoryId)) return;
 
   const pageData = generatePages(userToken, currentStoryId);
   if (!pageData) return;
 
-  // 9. 이미지 병렬 생성
-  if (pageData.pageContentDtoList?.length > 0) {
-    const { concurrentImages, repeatCount } = IMAGE_GENERATION_CONFIG;
-    if ((concurrentImages || 0) > 0) {
-      generateImagesParallel(
-        userToken,
-        pageData.pageContentDtoList,
-        concurrentImages,
-        repeatCount || 1
-      );
-    }
+  // 9. 이미지 병렬 생성 요청만 전송 (폴링 없음)
+  const { concurrentImages, repeatCount } = IMAGE_GENERATION_CONFIG;
+  if ((concurrentImages || 0) > 0) {
+    // 더미 페이지 데이터 생성 (실제 pageId는 서버에서 생성되므로 임시 값 사용)
+    const dummyPages = Array.from({ length: concurrentImages }, (_, i) => ({
+      pageId: `dummy-${currentStoryId}-${i}`,
+    }));
+    generateImagesParallel(
+      userToken,
+      dummyPages,
+      concurrentImages,
+      repeatCount || 1
+    );
   }
 
   fullFlowDuration.add(Date.now() - flowStartTime);

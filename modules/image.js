@@ -1,18 +1,10 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
-import { Trend } from "k6/metrics";
-import {
-  SERVER_URL,
-  POLLING_CONFIG,
-  TEST_DATA,
-  IMAGE_GENERATION_CONFIG,
-} from "../config.js";
+import { SERVER_URL, TEST_DATA } from "../config.js";
 import { trackError } from "./error-tracker.js";
 
-const imageGenerationDuration = new Trend("image_generation_duration");
-
 /**
- * Image 생성 요청 + 폴링
+ * Image 생성 요청만 전송 (폴링 없음, 요청 성공 시 바로 성공 처리)
  */
 export function generateImage(token, pageId) {
   if (!pageId) {
@@ -32,7 +24,7 @@ export function generateImage(token, pageId) {
     personaIds: [],
   };
 
-  // 1. 생성 요청
+  // 생성 요청
   const genResponse = http.post(
     `${SERVER_URL}/api/v1/images/${pageId}/generate`,
     JSON.stringify(imageData),
@@ -59,69 +51,14 @@ export function generateImage(token, pageId) {
     return null;
   }
 
-  let requestId = null;
+  // 요청 성공 시 바로 성공 처리 (폴링 없음)
   try {
     const genResult = JSON.parse(genResponse.body);
-    requestId = genResult.requestId;
+    return { requestId: genResult.requestId };
   } catch (e) {
     console.log("❌ Image 생성 응답 파싱 실패");
     return null;
   }
-
-  // 2. 폴링
-  const startTime = Date.now();
-  let attempts = 0;
-
-  while (attempts < POLLING_CONFIG.image.maxAttempts) {
-    sleep(POLLING_CONFIG.image.intervalMs / 1000);
-
-    const pollResponse = http.get(
-      `${SERVER_URL}/api/v1/images/status/${requestId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (pollResponse.status === 200) {
-      try {
-        const data = JSON.parse(pollResponse.body);
-
-        if (data.isCompleted) {
-          const duration = Date.now() - startTime;
-          imageGenerationDuration.add(duration);
-          return data;
-        }
-
-        if (data.isFailed) {
-          console.log(`❌ Image 생성 실패: ${data.errorMessage}`);
-          trackError({
-            stage: "image_generation_failed",
-            pageId: pageId,
-            requestId: requestId,
-            statusCode: null,
-            errorMessage: data.errorMessage || "Image 생성 실패",
-          });
-          return null;
-        }
-      } catch (e) {
-        console.log(`⚠️ Image 응답 파싱 실패 (시도 ${attempts})`);
-      }
-    }
-
-    attempts++;
-  }
-
-  console.log("❌ Image 생성 타임아웃");
-  trackError({
-    stage: "image_polling",
-    pageId: pageId,
-    requestId: requestId,
-    statusCode: null,
-    errorMessage: `Image 폴링 타임아웃 (${attempts}번 시도)`,
-  });
-  return null;
 }
 
 /**
@@ -178,7 +115,6 @@ function requestImageGeneration(token, pageId) {
     return {
       requestId: genResult.requestId,
       pageId: pageId,
-      startTime: Date.now(),
     };
   } catch (e) {
     console.log("❌ Image 생성 응답 파싱 실패");
@@ -187,7 +123,7 @@ function requestImageGeneration(token, pageId) {
 }
 
 /**
- * 여러 이미지를 병렬로 생성 (서로 다른 페이지에 동시 요청)
+ * 여러 이미지를 병렬로 생성 요청만 전송 (폴링 없음, 요청 성공 시 바로 성공 처리)
  * @param {string} token - 인증 토큰
  * @param {Array} pages - 페이지 목록 (각 페이지는 pageId를 가져야 함)
  * @param {number} concurrentCount - 한 번에 동시에 요청할 개수
@@ -209,16 +145,10 @@ export function generateImagesParallel(
   const targetPages = pages.slice(0, actualCount);
 
   const results = [];
-  const pageRequestCounts = {}; // 각 페이지별 요청 횟수 추적
-
-  // 페이지별 요청 횟수 초기화
-  targetPages.forEach((page) => {
-    pageRequestCounts[page.pageId] = 0;
-  });
 
   // repeatCount만큼 반복
   for (let round = 0; round < repeatCount; round++) {
-    // 1단계: 모든 페이지에 대해 생성 요청을 빠르게 연속으로 보냄
+    // 모든 페이지에 대해 생성 요청을 빠르게 연속으로 보냄
     const requests = [];
     for (let i = 0; i < targetPages.length; i++) {
       const page = targetPages[i];
@@ -226,7 +156,6 @@ export function generateImagesParallel(
       const requestInfo = requestImageGeneration(token, page.pageId);
       if (requestInfo) {
         requests.push(requestInfo);
-        pageRequestCounts[page.pageId]++;
       }
 
       // 요청 사이에 아주 짧은 간격 (서버 부하 분산)
@@ -240,85 +169,14 @@ export function generateImagesParallel(
       continue;
     }
 
-    // 2단계: 모든 요청을 동시에 폴링
-    const activeRequests = [...requests];
-    let pollingAttempt = 0;
-
-    while (
-      activeRequests.length > 0 &&
-      pollingAttempt < POLLING_CONFIG.image.maxAttempts
-    ) {
-      sleep(POLLING_CONFIG.image.intervalMs / 1000);
-
-      // 각 활성 요청에 대해 상태 확인
-      for (let i = activeRequests.length - 1; i >= 0; i--) {
-        const req = activeRequests[i];
-
-        const pollResponse = http.get(
-          `${SERVER_URL}/api/v1/images/status/${req.requestId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (pollResponse.status === 200) {
-          try {
-            const data = JSON.parse(pollResponse.body);
-
-            if (data.isCompleted) {
-              const duration = Date.now() - req.startTime;
-              imageGenerationDuration.add(duration);
-
-              results.push({
-                pageId: req.pageId,
-                requestId: req.requestId,
-                duration: duration,
-                round: round + 1,
-                data: data,
-              });
-
-              // 완료된 요청은 목록에서 제거
-              activeRequests.splice(i, 1);
-            } else if (data.isFailed) {
-              console.log(
-                `  ❌ 이미지 생성 실패 (pageId: ${req.pageId}): ${data.errorMessage}`
-              );
-              trackError({
-                stage: "image_generation_failed",
-                pageId: req.pageId,
-                requestId: req.requestId,
-                statusCode: null,
-                errorMessage: data.errorMessage || "Image 생성 실패",
-              });
-
-              // 실패한 요청은 목록에서 제거
-              activeRequests.splice(i, 1);
-            }
-            // 아직 진행 중이면 계속 폴링
-          } catch (e) {
-            console.log(`  ⚠️ 응답 파싱 실패 (pageId: ${req.pageId})`);
-          }
-        }
-      }
-
-      pollingAttempt++;
-    }
-
-    // 타임아웃된 요청 처리
-    if (activeRequests.length > 0) {
-      console.log(`  ⚠️ ${activeRequests.length}개 요청이 타임아웃되었습니다`);
-      activeRequests.forEach((req) => {
-        trackError({
-          stage: "image_polling",
-          pageId: req.pageId,
-          requestId: req.requestId,
-          statusCode: null,
-          errorMessage: `Image 폴링 타임아웃 (${pollingAttempt}번 시도)`,
-        });
+    // 요청 성공 시 바로 성공 처리 (폴링 없음)
+    requests.forEach((req) => {
+      results.push({
+        pageId: req.pageId,
+        requestId: req.requestId,
+        round: round + 1,
       });
-    }
+    });
 
     // 다음 라운드 전에 대기
     if (round < repeatCount - 1) {
