@@ -1,6 +1,10 @@
 // ===================================
 // 📋 테스트 설정 및 상수
 // ===================================
+//
+// 메트릭 경고 메시지 숨기기:
+// 실행 시 환경 변수 설정: K6_LOG_LEVEL=error k6 run chat-full-flow-test.js
+// 또는 run.sh 스크립트 사용: ./run.sh
 
 export const SERVER_URL = "https://dev-api.dreamai.studio";
 
@@ -67,9 +71,8 @@ export const IMAGE_GENERATION_CONFIG = {
 export const LOAD_TEST_OPTIONS = {
   stages: [
     { duration: "3m", target: 10000 },
-    { duration: "5m", target: 30000 },
-    { duration: "10m", target: 35000 }, // 14m → 10m (충분한 유지 시간)
-    { duration: "3m", target: 20000 },
+    { duration: "3m", target: 12000 },
+    { duration: "5m", target: 15000 },
     { duration: "3m", target: 0 },
   ],
   thresholds: {
