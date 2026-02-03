@@ -76,7 +76,9 @@ export default function () {
 
   fullFlowDuration.add(Date.now() - flowStartTime);
   currentStoryId = null;
-  sleep(3);
+
+  // 프로세스 완료 후 1분 대기 후 다음 iteration 시작
+  sleep(60);
 }
 
 // ===================================
