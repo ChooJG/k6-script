@@ -19,17 +19,17 @@ export const TEST_USERS = [
 export const POLLING_CONFIG = {
   summary: {
     maxAttempts: 60,
-    intervalMs: 2000,
+    intervalMs: 500,
     timeoutMs: 120000,
   },
   persona: {
     maxAttempts: 60,
-    intervalMs: 2000,
+    intervalMs: 500,
     timeoutMs: 120000,
   },
   page: {
     maxAttempts: 90,
-    intervalMs: 3000,
+    intervalMs: 500,
     timeoutMs: 180000,
   },
   image: {
