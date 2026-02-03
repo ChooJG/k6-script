@@ -64,7 +64,7 @@ export const IMAGE_GENERATION_CONFIG = {
   // concurrentImages: 한 번에 동시에 생성 요청을 보낼 이미지 개수 (예: 5개의 서로 다른 페이지에 동시 요청)
   //                   0으로 설정하면 이미지 생성을 건너뜁니다.
   // repeatCount: 각 페이지에 대해 반복 요청할 횟수 (예: 2이면 동일한 페이지들에 총 2번 요청)
-  concurrentImages: 5,
+  concurrentImages: 1,
   repeatCount: 2,
 };
 
