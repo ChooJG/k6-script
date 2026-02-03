@@ -30,31 +30,33 @@ export default function () {
   if (!userToken) {
     userToken = login();
     if (!userToken) return; // 실패 시 조용히 종료 (에러 트래커가 기록함)
-    sleep(1);
+    sleep(1 + Math.random() * 1); // 1-2초 랜덤
   }
 
   // 2. 채팅 시작
   if (!currentStoryId) {
     currentStoryId = startChat(userToken);
     if (!currentStoryId) return;
-    sleep(1);
+    sleep(1 + Math.random() * 1); // 1-2초 랜덤
   }
 
   // 3. 장르 & 4. 주제 설정
   if (!setGenre(userToken, currentStoryId)) return;
-  sleep(1);
+  sleep(1 + Math.random() * 1); // 1-2초 랜덤
   if (!setTheme(userToken, currentStoryId)) return;
-  sleep(1);
+  sleep(1 + Math.random() * 1); // 1-2초 랜덤
 
-  // 5. 메시지 전송 (6회)
-  for (let i = 0; i < 6; i++) {
+  // 5. 메시지 전송 (4회)
+  for (let i = 0; i < 4; i++) {
     if (!sendMessage(userToken, currentStoryId)) return;
-    sleep(1 + Math.random() * 2);
+    sleep(1 + Math.random() * 2); // 1-3초 랜덤
   }
 
   // 6 ~ 8. 생성 요청만 전송 (Summary, Persona, Page) - 폴링 없음
   if (!generateSummary(userToken, currentStoryId)) return;
+  sleep(3 + Math.random() * 1); // 생성 요청 사이 3-4초 랜덤
   if (!generatePersona(userToken, currentStoryId)) return;
+  sleep(3 + Math.random() * 1); // 생성 요청 사이 3-4초 랜덤
 
   const pageData = generatePages(userToken, currentStoryId);
   if (!pageData) return;
@@ -77,8 +79,8 @@ export default function () {
   fullFlowDuration.add(Date.now() - flowStartTime);
   currentStoryId = null;
 
-  // 프로세스 완료 후 1분 대기 후 다음 iteration 시작
-  sleep(60);
+  // 프로세스 완료 후 90-100초 랜덤 대기 후 다음 iteration 시작
+  sleep(90 + Math.random() * 10);
 }
 
 // ===================================
